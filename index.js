@@ -5,6 +5,10 @@ const fs = require("fs");
 const QRCode = require("qrcode");
 
 const app = express();
+const cors = require("cors");       // ← ADICIONE AQUI
+
+const app = express();
+app.use(cors());                     // ← ADICIONE AQUI
 app.use(express.json());
 
 // ============================================
