@@ -9,10 +9,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-
-// ============================================
-// 🔧 COLE A URL DO WEBHOOK AQUI
-// ============================================
 const WEBHOOK_URL = "https://efnoqbrexeojxccfqsfy.supabase.co/functions/v1/whatsapp-webhook";
 
 let sock = null;
@@ -42,14 +38,14 @@ async function connectWhatsApp() {
     if (qr) {
       qrCode = await QRCode.toDataURL(qr);
       connectionStatus = "disconnected";
-      console.log("📱 QR Code gerado - escaneie pelo WhatsApp");
+      console.log("QR Code gerado - escaneie pelo WhatsApp");
     }
 
     if (connection === "open") {
       connectionStatus = "connected";
       qrCode = null;
       connectedPhone = sock.user?.id?.split(":")[0] || null;
-      console.log("✅ WhatsApp conectado:", connectedPhone);
+      console.log("WhatsApp conectado:", connectedPhone);
     }
 
     if (connection === "close") {
@@ -57,10 +53,10 @@ async function connectWhatsApp() {
       connectedPhone = null;
       const reason = lastDisconnect?.error?.output?.statusCode;
       if (reason !== DisconnectReason.loggedOut) {
-        console.log("🔄 Reconectando...");
+        console.log("Reconectando...");
         setTimeout(connectWhatsApp, 3000);
       } else {
-        console.log("❌ Deslogado. Apague a pasta auth_info e reinicie.");
+        console.log("Deslogado. Limpando sessao...");
         if (fs.existsSync("auth_info")) {
           fs.rmSync("auth_info", { recursive: true });
         }
@@ -69,9 +65,6 @@ async function connectWhatsApp() {
     }
   });
 
-  // ============================================
-  // 📩 RECEBER MENSAGENS E CHAMAR O WEBHOOK
-  // ============================================
   sock.ev.on("messages.upsert", async ({ messages }) => {
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
@@ -79,7 +72,6 @@ async function connectWhatsApp() {
       const jid = msg.key.remoteJid;
       if (!jid || jid === "status@broadcast") continue;
 
-      // Extrair texto da mensagem
       const text =
         msg.message.conversation ||
         msg.message.extendedTextMessage?.text ||
@@ -92,9 +84,8 @@ async function connectWhatsApp() {
       const phone = jid.replace("@s.whatsapp.net", "");
       const contactName = msg.pushName || "Unknown";
 
-      console.log(`📨 Mensagem de ${contactName} (${phone}): ${text}`);
+      console.log("Mensagem de " + contactName + " (" + phone + "): " + text);
 
-      // Chamar o webhook do NexusBot
       try {
         const response = await fetch(WEBHOOK_URL, {
           method: "POST",
@@ -108,25 +99,19 @@ async function connectWhatsApp() {
 
         const data = await response.json();
 
-        // Se o webhook retornou uma resposta, envia pro WhatsApp
         if (data.reply) {
           await sock.sendMessage(jid, { text: data.reply });
-          console.log(`🤖 Resposta (${data.mode}): ${data.reply.substring(0, 50)}...`);
+          console.log("Resposta (" + data.mode + "): " + data.reply.substring(0, 50) + "...");
         } else {
-          console.log(`⏸️ Bot desligado ou sem resposta para: ${text.substring(0, 30)}`);
+          console.log("Bot desligado ou sem resposta");
         }
       } catch (err) {
-        console.error("❌ Erro ao chamar webhook:", err.message);
+        console.error("Erro ao chamar webhook:", err.message);
       }
     }
   });
 }
 
-// ============================================
-// 🌐 ROTAS DA API
-// ============================================
-
-// Status do servidor
 app.get("/", (req, res) => {
   res.json({
     status: "running",
@@ -135,7 +120,6 @@ app.get("/", (req, res) => {
   });
 });
 
-// QR Code
 app.get("/api/qr", (req, res) => {
   if (connectionStatus === "connected") {
     return res.json({ status: "connected", phone: connectedPhone });
@@ -146,14 +130,13 @@ app.get("/api/qr", (req, res) => {
   res.json({ status: "waiting", message: "Aguardando QR Code..." });
 });
 
-// Enviar mensagem
 app.post("/send", async (req, res) => {
   try {
     const { phone, message } = req.body;
     if (!phone || !message) {
-      return res.status(400).json({ error: "phone e message são obrigatórios" });
+      return res.status(400).json({ error: "phone e message sao obrigatorios" });
     }
-    const jid = phone.includes("@") ? phone : `${phone}@s.whatsapp.net`;
+    const jid = phone.includes("@") ? phone : phone + "@s.whatsapp.net";
     await sock.sendMessage(jid, { text: message });
     res.json({ success: true, message: "Mensagem enviada" });
   } catch (err) {
@@ -161,7 +144,6 @@ app.post("/send", async (req, res) => {
   }
 });
 
-// Desconectar
 app.post("/disconnect", async (req, res) => {
   try {
     if (sock) await sock.logout();
@@ -173,7 +155,6 @@ app.post("/disconnect", async (req, res) => {
   }
 });
 
-// Reiniciar
 app.post("/restart", async (req, res) => {
   if (fs.existsSync("auth_info")) {
     fs.rmSync("auth_info", { recursive: true });
@@ -184,11 +165,8 @@ app.post("/restart", async (req, res) => {
   res.json({ success: true, message: "Reiniciando..." });
 });
 
-// ============================================
-// 🚀 INICIAR
-// ============================================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log("Servidor rodando na porta " + PORT);
   connectWhatsApp();
 });
