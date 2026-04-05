@@ -1,15 +1,14 @@
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, makeCacheableSignalKeyStore } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const express = require("express");
+const cors = require("cors");
 const fs = require("fs");
 const QRCode = require("qrcode");
 
 const app = express();
-const cors = require("cors");       // ← ADICIONE AQUI
-
-const app = express();
-app.use(cors());                     // ← ADICIONE AQUI
+app.use(cors());
 app.use(express.json());
+
 
 // ============================================
 // 🔧 COLE A URL DO WEBHOOK AQUI
