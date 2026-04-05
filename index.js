@@ -47,13 +47,44 @@ app.get('/', (req, res) => {
   });
 });
 
-// Get QR Code
+// Get QR Code as HTML page
 app.get('/qr', (req, res) => {
+  if (whatsappState.connected) {
+    return res.send(`
+      <html><body style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#111;color:#0f0;font-family:sans-serif;flex-direction:column">
+        <h1>✅ WhatsApp Conectado!</h1>
+        <p>Número: ${whatsappState.phoneNumber}</p>
+        <a href="/" style="color:#0af">Ver status</a>
+      </body></html>
+    `);
+  }
+  if (!whatsappState.qr) {
+    return res.send(`
+      <html><body style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#111;color:#fff;font-family:sans-serif;flex-direction:column">
+        <h1>⏳ Aguardando QR Code...</h1>
+        <p>Recarregue a página em alguns segundos</p>
+        <script>setTimeout(() => location.reload(), 3000)</script>
+      </body></html>
+    `);
+  }
+  res.send(`
+    <html><body style="display:flex;justify-content:center;align-items:center;min-height:100vh;background:#111;color:#fff;font-family:sans-serif;flex-direction:column">
+      <h1>📱 Escaneie o QR Code</h1>
+      <p>Abra o WhatsApp → Dispositivos conectados → Conectar dispositivo</p>
+      <img src="${whatsappState.qr}" style="width:300px;height:300px;margin:20px;border-radius:12px" />
+      <p style="color:#888">O QR Code expira em 60 segundos. A página recarrega automaticamente.</p>
+      <script>setTimeout(() => location.reload(), 30000)</script>
+    </body></html>
+  `);
+});
+
+// API endpoint for QR (JSON)
+app.get('/api/qr', (req, res) => {
   if (whatsappState.connected) {
     return res.json({ status: 'connected', phone: whatsappState.phoneNumber });
   }
   if (!whatsappState.qr) {
-    return res.json({ status: 'waiting', message: 'QR Code ainda não gerado. Aguarde...' });
+    return res.json({ status: 'waiting', message: 'QR Code ainda não gerado.' });
   }
   res.json({ status: 'qr', qr: whatsappState.qr });
 });
